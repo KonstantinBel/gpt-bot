@@ -15,11 +15,14 @@ const bot = new Telegraf(config.get('TELEGRAM_TOKEN'))
 bot.use(session())
 
 bot.command('new', async (ctx) => {
+  console.log('Command: new');
+
   ctx.session = { ...INITIAL_SESSION }
   await ctx.reply(code('Сессия сброшена'))
 })
 
 bot.on(message('voice'), async ctx => {
+  console.log(`Start processing (${ctx.message.from.username}): voice`);
   ctx.session ??= { ...INITIAL_SESSION }
 
   try {
@@ -32,10 +35,14 @@ bot.on(message('voice'), async ctx => {
     const mp3File = await ogg.toMp3(oggFile, userId)
     const userText = await openai.transcription(mp3File)
     
+    console.log(`User input(${ctx.message.from.username}): ${userText}`);
     await ctx.reply(code(`ваш запрос: ${userText}`))
 
     ctx.session.messages.push({ role: openai.roles.User, content: userText })
+
     const responseText = await openai.chat(ctx.session.messages)
+    console.log(`GPT output(${ctx.message.from.username}): ${responseText}`);
+
     ctx.session.messages.push({ role: openai.roles.Assistant, content: responseText })
     
     await ctx.reply(responseText)
@@ -47,15 +54,20 @@ bot.on(message('voice'), async ctx => {
 })
 
 bot.on(message('text'), async ctx => {
+  console.log(`Start processing (${ctx.message.from.username}): text`);
   ctx.session ??= { ...INITIAL_SESSION }
 
   try {
     await ctx.reply(code('processing...'))
 
     const userText = ctx.message.text
+    console.log(`User input(${ctx.message.from.username}): ${userText}`);
 
     ctx.session.messages.push({ role: openai.roles.User, content: userText })
+
     const responseText = await openai.chat(ctx.session.messages)
+    console.log(`GPT output(${ctx.message.from.username}): ${responseText}`);
+
     ctx.session.messages.push({ role: openai.roles.Assistant, content: responseText })
     
     await ctx.reply(responseText)
@@ -66,7 +78,7 @@ bot.on(message('text'), async ctx => {
 })
 
 bot.launch()
-
+console.log('Bot is launched');
 
 
 // ===================================
