@@ -15,6 +15,12 @@ const bot = new Telegraf(config.get('TELEGRAM_TOKEN'))
 bot.use(session())
 
 bot.command('new', async (ctx) => {
+  if (ctx.message.from.id != "262302601") {
+    await ctx.reply(code('Доступ запрещен'))
+    console.log(`Access denied: ${ctx.message.from.id}`);
+    return
+  }
+
   console.log('Command: new');
 
   ctx.session = { ...INITIAL_SESSION }
@@ -23,6 +29,13 @@ bot.command('new', async (ctx) => {
 
 bot.on(message('voice'), async ctx => {
   console.log(`Start processing (${ctx.message.from.username}): voice`);
+
+  if (ctx.message.from.id != "262302601") {
+    await ctx.reply(code('Доступ запрещен'))
+    console.log(`Access denied: ${ctx.message.from.id}`);
+    return
+  }
+
   ctx.session ??= { ...INITIAL_SESSION }
 
   try {
@@ -55,6 +68,13 @@ bot.on(message('voice'), async ctx => {
 
 bot.on(message('text'), async ctx => {
   console.log(`Start processing (${ctx.message.from.username}): text`);
+
+  if (ctx.message.from.id != "262302601") {
+    await ctx.reply(code('Доступ запрещен'))
+    console.log(`Access denied: ${ctx.message.from.id}`);
+    return
+  }
+
   ctx.session ??= { ...INITIAL_SESSION }
 
   try {
