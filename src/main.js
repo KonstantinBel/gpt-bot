@@ -5,6 +5,7 @@ import config from 'config'
 import { ogg } from './ogg.js'
 import { removeFile } from './utils.js'
 import { openai } from './openai.js'
+import { checkAccess } from './check-access.js'
 
 const INITIAL_SESSION = {
   messages: []
@@ -15,13 +16,13 @@ const bot = new Telegraf(config.get('TELEGRAM_TOKEN'))
 bot.use(session())
 
 bot.command('new', async (ctx) => {
-  if (ctx.message.from.id != "262302601") {
-    await ctx.reply(code('Доступ запрещен'))
-    console.log(`Access denied: ${ctx.message.from.id}`);
+  console.log('Command: new');
+
+  const hasAccess = await checkAccess(ctx, 'new')
+
+  if (!hasAccess) {
     return
   }
-
-  console.log('Command: new');
 
   ctx.session = { ...INITIAL_SESSION }
   await ctx.reply(code('Сессия сброшена'))
@@ -30,9 +31,9 @@ bot.command('new', async (ctx) => {
 bot.on(message('voice'), async ctx => {
   console.log(`Start processing (${ctx.message.from.username}): voice`);
 
-  if (ctx.message.from.id != "262302601") {
-    await ctx.reply(code('Доступ запрещен'))
-    console.log(`Access denied: ${ctx.message.from.id}`);
+  const hasAccess = await checkAccess(ctx, 'voice')
+
+  if (!hasAccess) {
     return
   }
 
@@ -69,9 +70,9 @@ bot.on(message('voice'), async ctx => {
 bot.on(message('text'), async ctx => {
   console.log(`Start processing (${ctx.message.from.username}): text`);
 
-  if (ctx.message.from.id != "262302601") {
-    await ctx.reply(code('Доступ запрещен'))
-    console.log(`Access denied: ${ctx.message.from.id}`);
+  const hasAccess = await checkAccess(ctx, 'text')
+
+  if (!hasAccess) {
     return
   }
 
