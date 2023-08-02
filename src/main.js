@@ -83,7 +83,7 @@ bot.on(message('voice'), async ctx => {
 
     ctx.session.messages.push({ role: openai.roles.Assistant, content: gptResponse.content })
     
-    if (!gptResponse.content) {
+    if (!gptResponse) {
       await ctx.reply(code('GPT API is not responding. Try to reset session by /new command'))
       return
     }
@@ -121,7 +121,7 @@ bot.on(message('text'), async ctx => {
 
     ctx.session.messages.push({ role: openai.roles.Assistant, content: gptResponse.content })
     
-    if (!gptResponse.content) {
+    if (!gptResponse) {
       await ctx.reply(code('GPT API is not responding. Try to reset session by /new command'))
       return
     }
