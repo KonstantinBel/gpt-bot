@@ -8,64 +8,75 @@ import { openai } from './openai.js'
 import { checkAccess } from './check-access.js'
 
 let enableDebug = false
-
 const bot = new Telegraf(config.get('TELEGRAM_TOKEN'))
 
 bot.use(session())
 
 bot.command('debug', async (ctx) => {
-  enableDebug = !enableDebug
-  await ctx.reply(`Debug mode: ${enableDebug}`)
+  try {
+    if (!await checkAccess(ctx, 'debug')) {
+      return
+    }
+  
+    enableDebug = !enableDebug
+    await ctx.reply(code(`Режим отладки: ${enableDebug ? 'включен' : 'выключен'}`))
+  } catch (error) {
+    handleError(ctx, error)
+  }
 })
 
 bot.command('context', async (ctx) => {
-  await ctx.reply(code(JSON.stringify(ctx.session, null, 2)))
+  try {
+    if (!await checkAccess(ctx, 'context')) {
+      return
+    }
+  
+    await ctx.reply(code(JSON.stringify(ctx.session, null, 2)))
+  } catch (error) {
+    handleError(ctx, error)
+  }
 })
 
 bot.command('system', async (ctx) => {
-  console.log('Command: system');
-
-  const hasAccess = await checkAccess(ctx, 'system')
-
-  if (!hasAccess) {
-    return
-  }
-
-  ctx.session ??= { messages: [] }
+  try {
+    if (!await checkAccess(ctx, 'system')) {
+      return
+    }
   
-  await ctx.sendChatAction('typing')
-  const userText = ctx.message.text.replace('/system ', '')
-  ctx.session.messages.push({ role: openai.roles.System, content: userText })
-  await ctx.reply(code(`Системное сообщение добавлено в контекст`))
+    ctx.session ??= { messages: [] }
+    
+    await ctx.sendChatAction('typing')
+    const userText = ctx.message.text.replace('/system ', '')
+    ctx.session.messages.push({ role: openai.roles.System, content: userText })
+    await ctx.reply(code(`Системное сообщение добавлено в контекст`))
+  } catch (error) {
+    handleError(ctx, error)
+  }
 })
 
 bot.command('new', async (ctx) => {
-  console.log('Command: new');
-
-  const hasAccess = await checkAccess(ctx, 'new')
-
-  if (!hasAccess) {
-    return
+  try {
+    if (!await checkAccess(ctx, 'new')) {
+      return
+    }
+  
+    openai.createNewApiInstance()
+    ctx.session = { messages: [] }
+    await ctx.reply(code('Сессия сброшена'))
+  } catch (error) {
+    handleError(ctx, error)
   }
-
-  openai.createNewApiInstance()
-  ctx.session = { messages: [] }
-  await ctx.reply(code('Сессия сброшена'))
 })
 
 bot.on(message('voice'), async ctx => {
-  console.log(`Start processing (${ctx.message.from.username}): voice`);
-
-  const hasAccess = await checkAccess(ctx, 'voice')
-
-  if (!hasAccess) {
-    return
-  }
-
-  ctx.session ??= { messages: [] }
-
   try {
-    await ctx.reply(code('start processing'))
+    if (!await checkAccess(ctx, 'voice')) {
+      return
+    }
+  
+    ctx.session ??= { messages: [] }
+
+    await ctx.reply(code('Начало обработки'))
     await ctx.sendChatAction('typing')
 
     const voiceLink = await ctx.telegram.getFileLink(ctx.message.voice.file_id)
@@ -75,39 +86,31 @@ bot.on(message('voice'), async ctx => {
     const mp3File = await ogg.toMp3(oggFile, userId)
     const userText = await openai.getTranscription(mp3File)
     
-    console.log(`User input(${ctx.message.from.username}): ${userText}`);
-
-    await ctx.reply(code(`ваш запрос: ${userText}`))
+    await ctx.reply(code(`Ваш запрос: ${userText}`))
     await ctx.sendChatAction('typing')
     await processUserInput(userText, ctx)
     await removeFile(oggFile)
   } catch (error) {
-    console.log('Voice message error:', error.message)
-    await ctx.reply(`Error: ${error.message}`)
+    handleError(ctx, error)
   }
 })
 
 bot.on(message('text'), async ctx => {
-  console.log(`Start processing (${ctx.message.from.username}): text`);
-
-  const hasAccess = await checkAccess(ctx, 'text')
-
-  if (!hasAccess) {
-    return
-  }
-
-  ctx.session ??= { messages: [] }
-
   try {
-    await ctx.reply(code('start processing...'))
+    if (!await checkAccess(ctx, 'text')) {
+      return
+    }
+
+    ctx.session ??= { messages: [] }
+
+    await ctx.reply(code('Начало обработки'))
     await ctx.sendChatAction('typing')
 
     const userText = ctx.message.text
 
     await processUserInput(userText, ctx)
   } catch (error) {
-    console.log('Text message error:', error.message)
-    await ctx.reply(`Error: ${error.message}`)
+    handleError(ctx, error)
   }
 })
 
@@ -118,7 +121,7 @@ console.log('Bot is launched');
 // ===================================
 
 async function processUserInput(userInput, ctx) {
-  console.log(`User input(${ctx.message.from.username}): ${userInput}`);
+  console.log(`User input (${ctx.message.from.username}): ${userInput}`);
 
   ctx.session.messages.push({ role: openai.roles.User, content: userInput })
   
@@ -129,15 +132,20 @@ async function processUserInput(userInput, ctx) {
     await ctx.reply(code(JSON.stringify(gptResponse.data, null, 2)))
   }
 
-  console.log(`GPT output(${ctx.message.from.username}): ${gptMessage?.content}`);
+  console.log(`GPT output (${ctx.message.from.username}): ${gptMessage?.content}`);
   ctx.session.messages.push(gptMessage)
   
-  await ctx.reply(gptMessage?.content || 'GPT API response in empty')
+  await ctx.reply(gptMessage?.content || 'Пустой ответ от API')
 }
 
 function handleStopProcess(event) {
   console.log(event);
   bot.stop(event)
+}
+
+async function handleError(ctx, error) {
+  console.log('Error:', error.stack)
+  await ctx.reply(code(error.message))
 }
 
 process.once('SIGINT', handleStopProcess)
