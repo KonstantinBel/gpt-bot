@@ -7,13 +7,20 @@ import { removeFile } from './utils.js'
 import { openai } from './openai.js'
 import { checkAccess } from './check-access.js'
 
-const INITIAL_SESSION = {
-  messages: []
-}
+let enableDebug = false
 
 const bot = new Telegraf(config.get('TELEGRAM_TOKEN'))
 
 bot.use(session())
+
+bot.command('debug', async (ctx) => {
+  enableDebug = !enableDebug
+  await ctx.reply(`Debug mode: ${enableDebug}`)
+})
+
+bot.command('context', async (ctx) => {
+  await ctx.reply(code(JSON.stringify(ctx.session, null, 2)))
+})
 
 bot.command('system', async (ctx) => {
   console.log('Command: system');
@@ -24,16 +31,12 @@ bot.command('system', async (ctx) => {
     return
   }
 
-  
-  ctx.session ??= { ...INITIAL_SESSION }
+  ctx.session ??= { messages: [] }
   
   await ctx.sendChatAction('typing')
   const userText = ctx.message.text.replace('/system ', '')
   ctx.session.messages.push({ role: openai.roles.System, content: userText })
-  const gptResponse = await openai.sendMessages(ctx.session.messages)
-  ctx.session.messages.push({ role: openai.roles.Assistant, content: gptResponse.content })
-  
-  await ctx.reply(code(`Системное сообщение передано: ${userText}`))
+  await ctx.reply(code(`Системное сообщение добавлено в контекст`))
 })
 
 bot.command('new', async (ctx) => {
@@ -46,7 +49,7 @@ bot.command('new', async (ctx) => {
   }
 
   openai.createNewApiInstance()
-  ctx.session = { ...INITIAL_SESSION }
+  ctx.session = { messages: [] }
   await ctx.reply(code('Сессия сброшена'))
 })
 
@@ -59,7 +62,7 @@ bot.on(message('voice'), async ctx => {
     return
   }
 
-  ctx.session ??= { ...INITIAL_SESSION }
+  ctx.session ??= { messages: [] }
 
   try {
     await ctx.reply(code('start processing'))
@@ -73,22 +76,10 @@ bot.on(message('voice'), async ctx => {
     const userText = await openai.getTranscription(mp3File)
     
     console.log(`User input(${ctx.message.from.username}): ${userText}`);
+
     await ctx.reply(code(`ваш запрос: ${userText}`))
     await ctx.sendChatAction('typing')
-
-    ctx.session.messages.push({ role: openai.roles.User, content: userText })
-
-    const gptResponse = await openai.sendMessages(ctx.session.messages)
-    console.log(`GPT output(${ctx.message.from.username}): ${gptResponse.content}`);
-
-    ctx.session.messages.push({ role: openai.roles.Assistant, content: gptResponse.content })
-    
-    if (!gptResponse) {
-      await ctx.reply(code('GPT API is not responding. Try to reset session by /new command'))
-      return
-    }
-    
-    await ctx.reply(gptResponse.content)
+    await processUserInput(userText, ctx)
     await removeFile(oggFile)
   } catch (error) {
     console.log('Voice message error:', error.message)
@@ -105,28 +96,15 @@ bot.on(message('text'), async ctx => {
     return
   }
 
-  ctx.session ??= { ...INITIAL_SESSION }
+  ctx.session ??= { messages: [] }
 
   try {
     await ctx.reply(code('start processing...'))
     await ctx.sendChatAction('typing')
 
     const userText = ctx.message.text
-    console.log(`User input(${ctx.message.from.username}): ${userText}`);
 
-    ctx.session.messages.push({ role: openai.roles.User, content: userText })
-
-    const gptResponse = await openai.sendMessages(ctx.session.messages)
-    console.log(`GPT output(${ctx.message.from.username}): ${gptResponse.content}`);
-
-    ctx.session.messages.push({ role: openai.roles.Assistant, content: gptResponse.content })
-    
-    if (!gptResponse) {
-      await ctx.reply(code('GPT API is not responding. Try to reset session by /new command'))
-      return
-    }
-    
-    await ctx.reply(gptResponse.content)
+    await processUserInput(userText, ctx)
   } catch (error) {
     console.log('Text message error:', error.message)
     await ctx.reply(`Error: ${error.message}`)
@@ -138,6 +116,24 @@ console.log('Bot is launched');
 
 
 // ===================================
+
+async function processUserInput(userInput, ctx) {
+  console.log(`User input(${ctx.message.from.username}): ${userInput}`);
+
+  ctx.session.messages.push({ role: openai.roles.User, content: userInput })
+  
+  const gptResponse = await openai.sendMessages(ctx.session.messages)
+  const gptMessage = gptResponse.data.choices[0].message
+
+  if (enableDebug) {
+    await ctx.reply(code(JSON.stringify(gptResponse.data, null, 2)))
+  }
+
+  console.log(`GPT output(${ctx.message.from.username}): ${gptMessage?.content}`);
+  ctx.session.messages.push(gptMessage)
+  
+  await ctx.reply(gptMessage?.content || 'GPT API response in empty')
+}
 
 function handleStopProcess(event) {
   console.log(event);

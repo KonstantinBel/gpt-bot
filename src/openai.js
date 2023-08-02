@@ -29,7 +29,7 @@ class OpenAI {
         messages,
       })
 
-      return response.data.choices[0].message
+      return response
     } catch (error) {
       console.log('Chat error:', error.message);
     }
