@@ -124,13 +124,14 @@ async function processUserInput(userInput, ctx) {
   console.log(`User input (${ctx.message.from.username}): ${userInput}`);
 
   ctx.session.messages.push({ role: openai.roles.User, content: userInput })
-  
+
   const gptResponse = await openai.sendMessages(ctx.session.messages)
-  const gptMessage = gptResponse.data.choices[0].message
 
   if (enableDebug) {
-    await ctx.reply(code(JSON.stringify(gptResponse.data, null, 2)))
+    console.log(gptResponse);
   }
+
+  const gptMessage = gptResponse.data.choices[0].message
 
   console.log(`GPT output (${ctx.message.from.username}): ${gptMessage?.content}`);
   ctx.session.messages.push(gptMessage)
