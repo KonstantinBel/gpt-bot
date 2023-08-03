@@ -60,7 +60,7 @@ bot.command('new', async (ctx) => {
       return
     }
   
-    await dropSession()
+    await dropSession(ctx)
   } catch (error) {
     handleError(ctx, error)
   }
