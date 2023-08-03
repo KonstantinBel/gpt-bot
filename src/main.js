@@ -60,9 +60,7 @@ bot.command('new', async (ctx) => {
       return
     }
   
-    openai.createNewApiInstance()
-    ctx.session = { messages: [] }
-    await ctx.reply(code('Сессия сброшена'))
+    await dropSession()
   } catch (error) {
     handleError(ctx, error)
   }
@@ -120,22 +118,30 @@ console.log('Bot is launched');
 
 // ===================================
 
+async function dropSession(ctx) {
+  openai.createNewApiInstance()
+  ctx.session = { messages: [] }
+  await ctx.reply(code('Сессия сброшена'))
+}
+
 async function processUserInput(userInput, ctx) {
   console.log(`User input (${ctx.message.from.username}): ${userInput}`);
-
   ctx.session.messages.push({ role: openai.roles.User, content: userInput })
-
   const gptResponse = await openai.sendMessages(ctx.session.messages)
 
-  if (enableDebug) {
-    console.log(gptResponse);
+  if (!gptResponse) {
+    console.log(code('Warning: tokens limit'))
+    await reply(code('Достигнул лимит токенов'))
+    await dropSession()
+
+    return
   }
 
   const gptMessage = gptResponse.data.choices[0].message
-
   console.log(`GPT output (${ctx.message.from.username}): ${gptMessage?.content}`);
   ctx.session.messages.push(gptMessage)
   
+  await ctx.reply(code(`Использовано токенов: ${gptResponse.data.usage.total_tokens}`))
   await ctx.reply(gptMessage?.content || 'Пустой ответ от API')
 }
 
