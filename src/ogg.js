@@ -26,7 +26,8 @@ class OggConverter {
           
       })
     } catch (error) {
-      console.log('Convert to mp3 error:', error.message);
+      console.log('Convert to mp3 error:', error.message)
+      throw error
     }
   }
 
@@ -48,7 +49,8 @@ class OggConverter {
       })
 
     } catch (error) {
-      console.log('Create ogg error:', error.message);
+      console.log('Create ogg error:', error.message)
+      throw error
     }
   }
 }
