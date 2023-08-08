@@ -4,6 +4,7 @@ import installer from '@ffmpeg-installer/ffmpeg'
 import { createWriteStream } from 'fs'
 import { dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
+import { getCurrentDateTime } from './utils.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -26,7 +27,7 @@ class OggConverter {
           
       })
     } catch (error) {
-      console.log('Convert to mp3 error:', error.message)
+      console.log(getCurrentDateTime(), '-',  'convert to mp3 error:', error.message)
       throw error
     }
   }
@@ -49,7 +50,7 @@ class OggConverter {
       })
 
     } catch (error) {
-      console.log('Create ogg error:', error.message)
+      console.log(getCurrentDateTime(), '-',  'create ogg error:', error.message)
       throw error
     }
   }

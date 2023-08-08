@@ -3,11 +3,12 @@ import { message } from 'telegraf/filters'
 import { code } from 'telegraf/format'
 import config from 'config'
 import { ogg } from './ogg.js'
-import { removeFile } from './utils.js'
+import { removeFile, getCurrentDateTime } from './utils.js'
 import { openai } from './openai.js'
 import { checkAccess } from './check-access.js'
 
 const TOKENS_LIMIT = 4096
+const TOKENS_LIMIT_BEFORE_CLEAN = 3900
 
 let enableDebug = false
 const bot = new Telegraf(config.get('TELEGRAM_TOKEN'))
@@ -111,7 +112,7 @@ bot.on(message('text'), async ctx => {
 })
 
 bot.launch()
-console.log('Bot is launched');
+console.log(getCurrentDateTime(), '-',  'bot is launched');
 
 
 // ===================================
@@ -129,8 +130,8 @@ async function processUserInput(userInput, ctx) {
   const gptResponse = await openai.sendMessages(ctx.session.messages)
 
   if (!gptResponse) {
-    console.log('Warning: tokens limit')
-    await ctx.reply(code('Достигнул лимит токенов'))
+    console.log(getCurrentDateTime(), '-',  'tokens limit')
+    await ctx.reply(code('Достигнул лимит токенов, контекст беседы сброшен'))
     await dropSession(ctx)
 
     return
@@ -138,18 +139,24 @@ async function processUserInput(userInput, ctx) {
 
   const gptMessage = gptResponse.data.choices[0].message
   ctx.session.messages.push(gptMessage)
-  
+
   await ctx.reply(gptMessage?.content || 'Пустой ответ от API')
-  await ctx.reply(code(`Доступно токенов: ${TOKENS_LIMIT - gptResponse.data.usage.total_tokens}`))
+
+  if (gptResponse.data.usage.total_tokens > TOKENS_LIMIT_BEFORE_CLEAN) {
+    ctx.session.messages = ctx.session.messages.slice(Math.round(ctx.session.messages.length / 2))
+    await ctx.reply(code('Начало беседы забыто'))
+  } else {
+    await ctx.reply(code(`Доступно токенов: ${TOKENS_LIMIT - gptResponse.data.usage.total_tokens}`))
+  }
 }
 
 function handleStopProcess(event) {
-  console.log(event);
+  console.log(getCurrentDateTime(), '-',  'stop process: ', event);
   bot.stop(event)
 }
 
 async function handleError(ctx, error) {
-  console.error(error.stack)
+  console.error(getCurrentDateTime(), '-', error.stack)
   await ctx.reply(code(error.message))
 }
 

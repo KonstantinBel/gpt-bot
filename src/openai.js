@@ -1,6 +1,7 @@
 import { Configuration, OpenAIApi } from 'openai'
 import config from 'config'
 import { createReadStream } from 'fs'
+import { getCurrentDateTime } from './utils.js'
 
 const TIMEOUT = 120000
 
@@ -38,7 +39,7 @@ class OpenAI {
   
       return response      
     } catch (error) {
-      console.log('Chat error:', error.message)
+      console.log(getCurrentDateTime(), '-',  'chat error:', error.message)
       throw error
     }
   }
@@ -57,7 +58,7 @@ class OpenAI {
   
       return response.data.text      
     } catch (error) {
-      console.log('Chat error:', error.message)
+      console.log(getCurrentDateTime(), '-',  'chat error:', error.message)
       throw error
     }
   }
