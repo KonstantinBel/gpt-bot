@@ -1,0 +1,8 @@
+Add dev.json | prod.json
+
+=======
+{
+  "TELEGRAM_TOKEN": "",
+  "OPENAI_API_KEY": ""
+}
+=======

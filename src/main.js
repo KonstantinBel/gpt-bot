@@ -7,8 +7,8 @@ import { removeFile, getCurrentDateTime } from './utils.js'
 import { openai } from './openai.js'
 import { checkAccess } from './check-access.js'
 
-const TOKENS_LIMIT = 4096
-const TOKENS_LIMIT_BEFORE_CLEAN = 3900
+const TOKENS_LIMIT = 8192
+const TOKENS_LIMIT_BEFORE_CLEAN = 8000
 
 let enableDebug = false
 const bot = new Telegraf(config.get('TELEGRAM_TOKEN'))
